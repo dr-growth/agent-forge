@@ -84,6 +84,13 @@ python -m src.loop --skill my-agent --max-iterations 5
 
 See the full [Getting Started Guide](docs/getting-started.md) for a detailed walkthrough.
 
+## Visual Architecture
+
+Interactive diagrams that show how everything fits together:
+
+- **[Architecture Board](architecture-board.html)** -- Full system overview: all 6 zones (Build, Execute, Govern, Improve, Lifecycle, Agents) with the Continuous Agent Forge Improvement Loop
+- **[Workflow Diagram](workflow.html)** -- Step-by-step journey from idea to improved agent, showing exactly how /algorithm, autoimprove, and governance connect
+
 ## What's Inside
 
 ```
