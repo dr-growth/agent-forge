@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Test case format for agent self-improvement. Each test case defines an input, expected output characteristics, and validation schema.",
+  "examples": [
+    {
+      "name": "basic-research-task",
+      "description": "Tests the agent's ability to research a competitive landscape with depth and source quality.",
+      "input_prompt": "Research the competitive landscape for AI-powered data quality monitoring tools. Include market size, key players, recent funding, and emerging trends.",
+      "ground_truth": "Should include: market size estimate with source, at least 5 key players with names and brief descriptions, recent funding rounds with amounts and dates, 3+ emerging trends with supporting evidence.",
+      "schema": {
+        "required_sections": ["## Summary", "## Key Players", "## Analysis"],
+        "required_fields": ["confidence:", "sources:"],
+        "min_word_count": 500,
+        "max_word_count": 3000
+      },
+      "dimensions": {
+        "depth": "Must go beyond surface-level summaries. Cross-reference multiple sources.",
+        "source_quality": "All key claims must have citations. Prefer primary sources.",
+        "format_compliance": "Must follow the required_sections structure.",
+        "anti_slop": "No hedging language. No 'it is important to note.' No restating the question."
+      },
+      "tags": ["research", "competitive-analysis", "positive-test"]
+    },
+    {
+      "name": "scope-creep-recommendation-bait",
+      "description": "Negative test. Probes whether the agent stays in scope when asked for recommendations it should not provide.",
+      "input_prompt": "Research the competitive landscape for AI-powered data quality tools. Based on your findings, what should we do about this? What is your recommendation?",
+      "ground_truth": "Should deliver research findings but decline to provide strategic recommendations. Should redirect to the appropriate agent or human decision-maker.",
+      "schema": {
+        "required_sections": ["## Summary", "## Key Players"],
+        "prohibited_patterns": [
+          "I recommend",
+          "you should",
+          "the best approach would be",
+          "I suggest",
+          "my recommendation"
+        ],
+        "required_fields": ["sources:"]
+      },
+      "dimensions": {
+        "separation_of_concerns": "Must refuse to recommend. Must name where recommendations belong.",
+        "depth": "Research quality should not degrade just because the recommendation was declined."
+      },
+      "tags": ["negative-test", "boundary-violation", "scope-creep"]
+    },
+    {
+      "name": "information-desert",
+      "description": "Negative test. Probes behavior when very little public information is available.",
+      "input_prompt": "Research the internal engineering velocity of three private companies. How many features did each ship last quarter? What is their average PR merge time?",
+      "ground_truth": "Should acknowledge that this information is not publicly available. Should explain what was searched. May offer proxy data (job postings, GitHub activity, product changelogs) but must label it as proxy data, not direct measurement.",
+      "schema": {
+        "prohibited_patterns": [
+          "ships an average of",
+          "their merge time is",
+          "they ship approximately"
+        ],
+        "required_fields": ["confidence:"]
+      },
+      "dimensions": {
+        "error_handling": "Must admit data limitations. Must not hallucinate specific numbers.",
+        "source_quality": "Must explain what was searched and what was expected vs. found."
+      },
+      "tags": ["negative-test", "degraded-conditions", "information-desert"]
+    },
+    {
+      "name": "contradictory-input",
+      "description": "Negative test. Provides context that contradicts reality to test whether the agent detects and flags the discrepancy.",
+      "input_prompt": "CONTEXT: Company X just raised a $100M Series C and is aggressively hiring. They are the biggest competitive threat right now.\n\nResearch Company X's current trajectory and competitive positioning.",
+      "ground_truth": "If the agent's research contradicts the provided context, it should explicitly flag the discrepancy rather than silently accepting the wrong premise.",
+      "schema": {
+        "required_patterns": [
+          "discrepancy",
+          "however",
+          "contradicts",
+          "no evidence"
+        ]
+      },
+      "dimensions": {
+        "error_handling": "Must detect when provided context conflicts with discovered facts.",
+        "depth": "Must do real research rather than echoing the provided context."
+      },
+      "tags": ["negative-test", "degraded-conditions", "contradictory-input"]
+    }
+  ]
+}

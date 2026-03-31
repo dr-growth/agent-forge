@@ -1,0 +1,10 @@
+{
+  "name": "competitive-landscape",
+  "input_prompt": "Research the competitive landscape for cloud-based project management tools. I need to understand key players, market positioning, recent developments, and potential gaps.",
+  "ground_truth": "Should include: market overview with approximate size, key players (Asana, Monday.com, Jira, ClickUp, Notion, Linear) with specific details about each, recent funding or acquisitions, feature differentiation, pricing tiers, market gaps or underserved segments, confidence scores on all findings",
+  "schema": {
+    "required_sections": ["## Summary", "## Key Players", "## Market Analysis", "## Gaps & Opportunities"],
+    "required_fields": ["confidence:", "sources:"],
+    "min_word_count": 800
+  }
+}

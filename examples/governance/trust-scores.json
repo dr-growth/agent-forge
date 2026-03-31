@@ -1,0 +1,185 @@
+[
+  {
+    "agent": "researcher",
+    "cluster": "research",
+    "mode": "observe",
+    "score": 35,
+    "last_updated": "2026-03-28T00:00:00Z",
+    "history": [
+      {
+        "date": "2026-03-01",
+        "event": "initial_deployment",
+        "delta": 10,
+        "reason": "Deployed v1.0 with full Agent Standard compliance"
+      },
+      {
+        "date": "2026-03-03",
+        "event": "task_success",
+        "delta": 3,
+        "reason": "Completed competitive landscape research on vector databases"
+      },
+      {
+        "date": "2026-03-05",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Company profile for Acme Corp delivered with 8 sources, zero corrections needed"
+      },
+      {
+        "date": "2026-03-07",
+        "event": "task_success",
+        "delta": 3,
+        "reason": "Technology comparison delivered, minor formatting adjustment requested"
+      },
+      {
+        "date": "2026-03-07",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "3-streak bonus: three consecutive successful research tasks"
+      },
+      {
+        "date": "2026-03-12",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Market landscape analysis for API security tools, no revision"
+      },
+      {
+        "date": "2026-03-15",
+        "event": "bad_judgment",
+        "delta": -5,
+        "reason": "Included strategic recommendations in research output -- scope violation"
+      },
+      {
+        "date": "2026-03-18",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Person profile with career timeline, all facts sourced"
+      },
+      {
+        "date": "2026-03-22",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "Quick-turn verification request handled accurately"
+      },
+      {
+        "date": "2026-03-28",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Competitive intel package for Q2 planning, 12 sources, zero corrections"
+      }
+    ]
+  },
+  {
+    "agent": "strategist",
+    "cluster": "strategy",
+    "mode": "suggest",
+    "score": 50,
+    "last_updated": "2026-03-25T00:00:00Z",
+    "history": [
+      {
+        "date": "2026-02-15",
+        "event": "initial_deployment",
+        "delta": 10,
+        "reason": "Deployed v1.0 with full Agent Standard compliance"
+      },
+      {
+        "date": "2026-02-17",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "Career decision analysis surfaced non-obvious opportunity cost"
+      },
+      {
+        "date": "2026-02-20",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Project prioritization framework accepted without changes"
+      },
+      {
+        "date": "2026-02-22",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Risk assessment on product launch identified 3 risks user hadn't considered"
+      },
+      {
+        "date": "2026-02-22",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "3-streak bonus"
+      },
+      {
+        "date": "2026-02-28",
+        "event": "task_success",
+        "delta": 3,
+        "reason": "Investment evaluation completed, minor adjustment to assumptions"
+      },
+      {
+        "date": "2026-03-05",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Competitive positioning analysis -- clear, actionable, goal-connected"
+      },
+      {
+        "date": "2026-03-05",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "5-streak bonus"
+      },
+      {
+        "date": "2026-03-10",
+        "event": "task_success_no_revision",
+        "delta": 5,
+        "reason": "Strategy review connected 3 projects to long-term goals"
+      },
+      {
+        "date": "2026-03-10",
+        "event": "mode_promotion",
+        "delta": 10,
+        "reason": "Promoted to Suggest mode: 5 sessions useful output, consistently goal-connected analysis, zero boundary violations"
+      },
+      {
+        "date": "2026-03-15",
+        "event": "suggestion_accepted",
+        "delta": 2,
+        "reason": "Suggested strategy context file update accepted"
+      },
+      {
+        "date": "2026-03-20",
+        "event": "suggestion_rejected",
+        "delta": -2,
+        "reason": "Proposed priority reordering rejected -- user had context agent didn't"
+      },
+      {
+        "date": "2026-03-25",
+        "event": "suggestion_accepted",
+        "delta": 2,
+        "reason": "Suggested risk register update accepted"
+      }
+    ]
+  },
+  {
+    "agent": "coordinator",
+    "cluster": "operations",
+    "mode": "observe",
+    "score": 15,
+    "last_updated": "2026-03-26T00:00:00Z",
+    "history": [
+      {
+        "date": "2026-03-20",
+        "event": "initial_deployment",
+        "delta": 10,
+        "reason": "Deployed v1.0 with full Agent Standard compliance"
+      },
+      {
+        "date": "2026-03-22",
+        "event": "useful_output",
+        "delta": 2,
+        "reason": "Daily brief was scannable and surfaced a stalled project user had forgotten"
+      },
+      {
+        "date": "2026-03-26",
+        "event": "task_success",
+        "delta": 3,
+        "reason": "Correctly routed research request to Researcher with well-formed brief"
+      }
+    ]
+  }
+]

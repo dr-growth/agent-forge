@@ -1,0 +1,10 @@
+{
+  "name": "company-profile",
+  "input_prompt": "Build a profile of Stripe. I need to understand their product suite, market position, leadership team, recent strategic moves, and technology stack.",
+  "ground_truth": "Should include: company overview (founding, mission, scale), product suite breakdown (Payments, Billing, Connect, Atlas, etc.), key leadership with names and roles, recent strategic moves (acquisitions, partnerships, product launches), technology stack and architecture approach, competitive positioning vs PayPal/Adyen/Square, confidence scores throughout",
+  "schema": {
+    "required_sections": ["## Company Overview", "## Products", "## Leadership", "## Strategic Analysis"],
+    "required_fields": ["confidence:", "sources:", "founded:"],
+    "min_word_count": 600
+  }
+}
