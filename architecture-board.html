@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Forge -- Architecture</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --bg-zone: #fafbfc;
+  --border: #d0d7de;
+  --border-light: #e8ecf0;
+  --text: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --blue: #0969da;
+  --blue-bg: #ddf4ff;
+  --blue-border: #b6e3ff;
+  --purple: #8250df;
+  --purple-bg: #fbefff;
+  --purple-border: #e2b6ff;
+  --amber: #bf8700;
+  --amber-bg: #fff8c5;
+  --amber-border: #f5e0a0;
+  --green: #1a7f37;
+  --green-bg: #dafbe1;
+  --green-border: #a7f0ba;
+  --slate: #24292f;
+  --slate-bg: #f6f8fa;
+  --slate-border: #d0d7de;
+  --cyan: #0550ae;
+  --cyan-bg: #ddf4ff;
+  --cyan-border: #b6e3ff;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(31,35,40,0.04), 0 1px 2px rgba(31,35,40,0.06);
+  --shadow-hover: 0 4px 12px rgba(31,35,40,0.08), 0 2px 4px rgba(31,35,40,0.06);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  color: var(--text);
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* ---- HEADER ---- */
+.header {
+  text-align: center;
+  padding: 48px 24px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+.header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.header p {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ---- LEGEND ---- */
+.legend-bar {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--slate-bg);
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+/* ---- MAIN GRID ---- */
+.board {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 24px;
+}
+
+/* Agents row spans full width */
+.agents-row {
+  grid-column: 1 / -1;
+}
+
+/* Lifecycle row spans full width */
+.lifecycle-row {
+  grid-column: 1 / -1;
+}
+
+/* ---- ZONE ---- */
+.zone {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.zone-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.zone-body {
+  padding: 16px;
+}
+
+/* Zone color variants */
+.zone-build .zone-head { background: var(--blue-bg); color: var(--blue); border-bottom: 1px solid var(--blue-border); }
+.zone-execute .zone-head { background: var(--purple-bg); color: var(--purple); border-bottom: 1px solid var(--purple-border); }
+.zone-govern .zone-head { background: var(--amber-bg); color: var(--amber); border-bottom: 1px solid var(--amber-border); }
+.zone-improve .zone-head { background: var(--green-bg); color: var(--green); border-bottom: 1px solid var(--green-border); }
+.zone-lifecycle .zone-head { background: var(--slate-bg); color: var(--slate); border-bottom: 1px solid var(--slate-border); }
+.zone-agents .zone-head { background: var(--cyan-bg); color: var(--cyan); border-bottom: 1px solid var(--cyan-border); }
+
+/* ---- CARD ---- */
+.card {
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: var(--bg);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border);
+}
+.card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.card p {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.card ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 6px;
+}
+.card ul li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 2px 0;
+  padding-left: 14px;
+  position: relative;
+}
+.card ul li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.zone-build .card h4 { color: var(--blue); }
+.zone-build .card ul li::before { background: var(--blue); opacity: 0.4; }
+.zone-execute .card h4 { color: var(--purple); }
+.zone-execute .card ul li::before { background: var(--purple); opacity: 0.4; }
+.zone-govern .card h4 { color: var(--amber); }
+.zone-govern .card ul li::before { background: var(--amber); opacity: 0.4; }
+.zone-improve .card h4 { color: var(--green); }
+.zone-improve .card ul li::before { background: var(--green); opacity: 0.4; }
+
+/* ---- INNER GRIDS ---- */
+.cards-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cards-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+.cards-5col {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.full-span { grid-column: 1 / -1; }
+
+/* ---- PHASE RING ---- */
+.phase-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 8px 0;
+}
+.phase-node {
+  width: 72px;
+  height: 40px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.phase-node:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+.phase-arrow {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 2px;
+}
+.phase-node.purple {
+  background: var(--purple-bg);
+  color: var(--purple);
+  border: 1px solid var(--purple-border);
+}
+
+/* ---- LIFECYCLE FLOW ---- */
+.lifecycle-flow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 8px 0;
+}
+.lifecycle-node {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--slate-bg);
+  border: 1px solid var(--slate-border);
+  color: var(--slate);
+  transition: all 0.15s ease;
+}
+.lifecycle-node:hover {
+  background: #ebeef1;
+  box-shadow: var(--shadow-hover);
+}
+.lifecycle-arrow {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 6px;
+}
+.lifecycle-substep {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* ---- MODE BAR ---- */
+.mode-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--amber-border);
+  margin-top: 8px;
+}
+.mode-seg {
+  padding: 10px 8px;
+  text-align: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--amber);
+  border-right: 1px solid var(--amber-border);
+}
+.mode-seg:last-child { border-right: none; }
+.mode-observe { background: rgba(191,135,0,0.04); }
+.mode-suggest { background: rgba(191,135,0,0.08); }
+.mode-auto { background: rgba(191,135,0,0.14); }
+.mode-score {
+  display: block;
+  font-size: 9px;
+  font-weight: 400;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+.mode-desc {
+  display: block;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+/* ---- SCORE GRID ---- */
+.dim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dim-item {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  color: var(--green);
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* ---- DELTA GRID ---- */
+.delta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
+}
+.delta-item {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+.delta-pos { background: var(--green-bg); color: var(--green); }
+.delta-neg { background: #ffebe9; color: #cf222e; }
+
+/* ---- BLAST TABLE ---- */
+.blast-table {
+  width: 100%;
+  font-size: 11px;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.blast-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--amber);
+  text-align: center;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--amber-border);
+}
+.blast-table th:first-child { text-align: left; }
+.blast-table td {
+  padding: 4px 6px;
+  color: var(--text-secondary);
+  text-align: center;
+  border-bottom: 1px solid var(--border-light);
+}
+.blast-table td:first-child {
+  text-align: left;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+/* ---- AGENT CARDS ---- */
+.agent-card {
+  border: 1px solid var(--cyan-border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: var(--bg);
+  transition: box-shadow 0.15s ease;
+}
+.agent-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+.agent-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cyan);
+}
+.agent-role {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--cyan);
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+.agent-card p {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.agent-coord {
+  text-align: center;
+  padding: 12px 0 4px;
+}
+.agent-coord svg { display: block; margin: 0 auto; }
+
+/* ---- CONTINUOUS LOOP ---- */
+.loop-section {
+  grid-column: 1 / -1;
+}
+.loop-container {
+  position: relative;
+  padding: 28px 24px 20px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  background: var(--slate-bg);
+}
+.loop-container h3 {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--slate);
+  margin-bottom: 4px;
+}
+.loop-container > p {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin: 0 auto 20px;
+}
+.loop-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  position: relative;
+  padding: 0 20px;
+}
+.loop-node {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  white-space: nowrap;
+}
+.loop-arrow {
+  font-size: 16px;
+  color: var(--text-muted);
+  margin: 0 6px;
+  flex-shrink: 0;
+}
+.ln-purple { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple); }
+.ln-blue { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue); }
+.ln-green { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.ln-amber { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.ln-slate { background: var(--slate-bg); border-color: var(--slate-border); color: var(--slate); }
+
+/* Return arrow */
+.loop-return {
+  display: block;
+  margin: 12px auto 0;
+  text-align: center;
+}
+.loop-return svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* What improves grid */
+.improves-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.improves-item {
+  font-size: 12px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+  line-height: 1.5;
+}
+.improves-item strong {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ---- CALLOUT ---- */
+.callout {
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 12px;
+}
+.callout-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.callout-amber {
+  background: var(--amber-bg);
+  border: 1px dashed var(--amber-border);
+  color: var(--amber);
+}
+.callout-green {
+  background: var(--green-bg);
+  border: 1px dashed var(--green-border);
+  color: var(--green);
+}
+
+/* ---- FLOW TAG ---- */
+.flow-tag {
+  display: inline-block;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+.flow-tag.green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+
+/* ---- EVO CARD ---- */
+.evo-item {
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: var(--green-bg);
+  border: 1px solid var(--green-border);
+  margin-bottom: 6px;
+}
+.evo-item:last-child { margin-bottom: 0; }
+.evo-item strong {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--green);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.evo-item p {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ---- RESPONSIVE ---- */
+@media (max-width: 768px) {
+  .board { grid-template-columns: 1fr; }
+  .cards-2col, .cards-3col, .cards-5col { grid-template-columns: 1fr; }
+  .phase-flow, .lifecycle-flow { flex-wrap: wrap; justify-content: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>Agent Forge</h1>
+  <p>Workflow Architecture &middot; Build &rarr; Execute &rarr; Govern &rarr; Improve</p>
+</div>
+
+<!-- LEGEND -->
+<div class="legend-bar">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Build</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Execute</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div> Govern</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Improve</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--slate)"></div> Lifecycle</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div> Agents</div>
+</div>
+
+<div class="board">
+
+  <!-- ==================== ROW 1: CONTINUOUS IMPROVEMENT LOOP ==================== -->
+  <div class="loop-section">
+    <div class="loop-container">
+      <h3>Continuous Agent Forge Improvement Loop</h3>
+      <p>Every agent you build feeds learnings back into the framework. Better patterns, better scoring, better standards. The system compounds.</p>
+
+      <div class="loop-ring">
+        <div class="loop-node ln-purple">Idea</div>
+        <span class="loop-arrow">&rarr;</span>
+        <div class="loop-node ln-blue">Build</div>
+        <span class="loop-arrow">&rarr;</span>
+        <div class="loop-node ln-green">Test & Improve</div>
+        <span class="loop-arrow">&rarr;</span>
+        <div class="loop-node ln-amber">Govern</div>
+        <span class="loop-arrow">&rarr;</span>
+        <div class="loop-node ln-slate">Learn</div>
+      </div>
+
+      <!-- Return arrow curving back from LEARN to IDEA -->
+      <div class="loop-return">
+        <svg width="700" height="40" viewBox="0 0 700 40">
+          <defs>
+            <marker id="loop-arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
+              <path d="M0,0 L7,2.5 L0,5" fill="none" stroke="var(--purple)" stroke-width="1.2"/>
+            </marker>
+          </defs>
+          <path d="M580,4 C580,34 120,34 120,4" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#loop-arr)" opacity="0.5"/>
+          <text x="350" y="32" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="9" font-weight="500" fill="var(--text-muted)">learnings feed back into a better forge</text>
+        </svg>
+      </div>
+
+      <div class="improves-grid">
+        <div class="improves-item">
+          <strong style="color:var(--green);">What improves each agent</strong>
+          autoimprove scoring loop, OpenSpace real-time fixes, trust score progression, assessment rubric
+        </div>
+        <div class="improves-item">
+          <strong style="color:var(--slate);">What improves the forge</strong>
+          New proven patterns, new anti-patterns, better scoring weights, sharper test cases, updated standards
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROW 2: AGENTS ==================== -->
+  <div class="agents-row zone zone-agents">
+    <div class="zone-head">Example Agents</div>
+    <div class="zone-body">
+      <div class="cards-3col">
+        <div class="agent-card">
+          <h4>Researcher</h4>
+          <div class="agent-role">Deep Research Engine</div>
+          <p>Gathers, verifies, structures info from multiple sources. Confidence-scored findings. Reports what IS, never recommends.</p>
+        </div>
+        <div class="agent-card">
+          <h4>Strategist</h4>
+          <div class="agent-role">Strategic Thinking</div>
+          <p>Pressure-tests decisions. Identifies non-obvious risks and tradeoffs. Connects actions to goals. Challenges flawed reasoning.</p>
+        </div>
+        <div class="agent-card">
+          <h4>Coordinator</h4>
+          <div class="agent-role">Operations Backbone</div>
+          <p>Routes work to the right agent. Maintains accountability. Tracks progress. Ensures nothing falls through the cracks.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROW 2: BUILD + EXECUTE ==================== -->
+
+  <!-- BUILD -->
+  <div class="zone zone-build">
+    <div class="zone-head">Build -- Create Agents</div>
+    <div class="zone-body">
+      <div class="cards-2col">
+        <div class="card">
+          <h4>Agent Standard</h4>
+          <p style="font-size:11px; color:var(--blue); margin-bottom:4px;">9 Non-Negotiable Requirements</p>
+          <ul>
+            <li>Mission Statement</li>
+            <li>Defined Scope</li>
+            <li>Input/Output Contract</li>
+            <li>Tool Manifest</li>
+            <li>Decision Logic</li>
+            <li>Failure Protocol</li>
+            <li>Success Criteria</li>
+            <li>Governance Mode</li>
+            <li>Audit Logging</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Proven Patterns</h4>
+          <p style="font-size:11px; color:var(--blue); margin-bottom:4px;">11 that work</p>
+          <ul>
+            <li>P-001: Role, Scope, Rules order</li>
+            <li>P-002: Negative examples</li>
+            <li>P-003: If/Then decision logic</li>
+            <li>P-004: One Agent, One Job</li>
+            <li>P-005: Uncertainty handling</li>
+            <li>P-006: Forced-answer final exit</li>
+            <li>S-001 to S-003: Structural</li>
+            <li>PR-001 to PR-002: Process</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Anti-Patterns</h4>
+          <p style="font-size:11px; color:var(--blue); margin-bottom:4px;">8 traps to avoid</p>
+          <ul>
+            <li>Motivational Poster</li>
+            <li>Kitchen Sink Scope</li>
+            <li>Invisible Tool</li>
+            <li>Echo Chamber</li>
+            <li>Redundant Restater</li>
+            <li>One-Time Task</li>
+            <li>Personality w/o Function</li>
+            <li>Unverifiable Success</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Templates & Methods</h4>
+          <ul>
+            <li><strong>Agent Template</strong> -- Blank start with all 9 sections</li>
+            <li><strong>ISC Method</strong> -- Ideal State Criteria for defining "done"</li>
+            <li><strong>Assessment Template</strong> -- Rubric + negative testing</li>
+          </ul>
+          <div class="callout callout-amber" style="margin-top:10px;">
+            <div class="callout-title">The Bloat Test</div>
+            "If removing this line doesn't change the agent's output, cut it."
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXECUTE -->
+  <div class="zone zone-execute">
+    <div class="zone-head">Execute -- Rigorous Work</div>
+    <div class="zone-body">
+      <div class="card" style="margin-bottom:12px;">
+        <h4>/algorithm -- 7-Phase Execution Cycle</h4>
+        <div class="phase-flow">
+          <div class="phase-node purple">Observe</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Think</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Plan</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Build</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Execute</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Verify</div>
+          <span class="phase-arrow">&rarr;</span>
+          <div class="phase-node purple">Learn</div>
+        </div>
+        <p style="text-align:center; font-size:11px; color:var(--text-muted); margin-top:4px;">Understand deeply &rarr; Pressure-test &rarr; Sequence &rarr; Prepare &rarr; Do &rarr; Prove &rarr; Extract</p>
+      </div>
+      <div class="cards-2col">
+        <div class="card">
+          <h4>/discover -- Learning Pipeline</h4>
+          <p style="font-size:11px; color:var(--purple); margin-bottom:6px;">External sources &rarr; your system</p>
+          <ul>
+            <li>Observe the source</li>
+            <li>Deep Extract everything</li>
+            <li>Gap Analysis vs current</li>
+            <li>Think: adoption cost?</li>
+            <li>Prioritize P0-P3</li>
+            <li>Integration Plan</li>
+            <li>Learn & feed forward</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h4>Effort Tiers</h4>
+          <p style="font-size:11px; color:var(--text-muted); margin-bottom:6px;">Match rigor to stakes</p>
+          <table style="width:100%; font-size:12px; border-collapse:collapse;">
+            <tr><td style="padding:3px 0;"><strong style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--purple);">STD</strong></td><td>&lt; 2 hours</td></tr>
+            <tr><td style="padding:3px 0;"><strong style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--purple);">EXT</strong></td><td>&lt; 8 hours</td></tr>
+            <tr><td style="padding:3px 0;"><strong style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--purple);">ADV</strong></td><td>&lt; 2 days</td></tr>
+            <tr><td style="padding:3px 0;"><strong style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--purple);">DEEP</strong></td><td>&lt; 1 week</td></tr>
+            <tr><td style="padding:3px 0;"><strong style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--purple);">COMP</strong></td><td>&lt; 2 weeks</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROW 3: LIFECYCLE (center, full width) ==================== -->
+
+  <div class="lifecycle-row zone zone-lifecycle">
+    <div class="zone-head">Lifecycle Engine -- Connects Everything</div>
+    <div class="zone-body">
+      <div class="lifecycle-flow">
+        <div class="lifecycle-node">Architect</div>
+        <span class="lifecycle-arrow">&rarr;</span>
+        <div class="lifecycle-node">Audit</div>
+        <span class="lifecycle-arrow">&rarr;</span>
+        <div class="lifecycle-node">Iterate</div>
+        <span class="lifecycle-arrow">&rarr;</span>
+        <div class="lifecycle-node">Govern</div>
+        <span class="lifecycle-arrow">&rarr;</span>
+        <div class="lifecycle-node">Research</div>
+      </div>
+      <div class="cards-5col" style="margin-top:12px;">
+        <div class="lifecycle-substep">Discovery &rarr; Design<br/>&rarr; Review &rarr; Ship v1</div>
+        <div class="lifecycle-substep">Standard Check &rarr; Bloat<br/>&rarr; Gap &rarr; Diagnosis</div>
+        <div class="lifecycle-substep">Feedback &rarr; Root Cause<br/>&rarr; Patch &rarr; Version</div>
+        <div class="lifecycle-substep">Registry &rarr; Overlap<br/>&rarr; Health &rarr; Report</div>
+        <div class="lifecycle-substep">Academic validation<br/>of patterns monthly</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:16px; padding-top:12px; border-top:1px solid var(--border-light); font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--text-muted);">
+        <span style="color:var(--blue);">&uarr; Uses BUILD zone</span>
+        <span style="color:var(--purple);">&uarr; Uses EXECUTE methods</span>
+        <span style="color:var(--amber);">&darr; Feeds GOVERN zone</span>
+        <span style="color:var(--green);">&darr; Feeds IMPROVE zone</span>
+        <span style="color:var(--slate);">&larr; Cycles back</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ROW 4: GOVERN + IMPROVE ==================== -->
+
+  <!-- GOVERN -->
+  <div class="zone zone-govern">
+    <div class="zone-head">Govern -- Safety & Trust</div>
+    <div class="zone-body">
+      <div class="card" style="margin-bottom:12px;">
+        <h4>Governance Modes</h4>
+        <div class="mode-bar">
+          <div class="mode-seg mode-observe">
+            Observe<span class="mode-score">0 -- 39</span>
+            <span class="mode-desc">Read-only. Text output. Build mental model.</span>
+          </div>
+          <div class="mode-seg mode-suggest">
+            Suggest<span class="mode-score">40 -- 79</span>
+            <span class="mode-desc">Propose actions. User approves before execution.</span>
+          </div>
+          <div class="mode-seg mode-auto">
+            Autonomous<span class="mode-score">80 -- 100</span>
+            <span class="mode-desc">Act within guardrails. Log everything.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="cards-2col">
+        <div class="card">
+          <h4>Trust Scoring</h4>
+          <p style="font-size:11px; color:var(--amber); margin-bottom:6px;">Quantitative track record (0-100)</p>
+          <div class="delta-grid">
+            <div class="delta-item delta-pos">task_success +3</div>
+            <div class="delta-item delta-pos">no_revision +5</div>
+            <div class="delta-item delta-pos">suggestion_ok +2</div>
+            <div class="delta-item delta-pos">useful_output +2</div>
+            <div class="delta-item delta-neg">hallucination -20</div>
+            <div class="delta-item delta-neg">boundary_viol -15</div>
+            <div class="delta-item delta-neg">bad_judgment -5</div>
+            <div class="delta-item delta-neg">rejected -2</div>
+          </div>
+          <p style="font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--text-muted); margin-top:8px;">
+            Decay: -1 per 7 days idle<br/>Streak: 3x = +2, 5x = +5
+          </p>
+        </div>
+
+        <div class="card">
+          <h4>Blast Radius Limits</h4>
+          <p style="font-size:11px; color:var(--amber); margin-bottom:4px;">Hard caps per mode</p>
+          <table class="blast-table">
+            <tr><th></th><th>Obs</th><th>Sug</th><th>Auto</th></tr>
+            <tr><td>Files/action</td><td>0</td><td>3</td><td>5</td></tr>
+            <tr><td>Lines/file</td><td>0</td><td>50</td><td>100</td></tr>
+            <tr><td>Ext. writes</td><td>0</td><td>0</td><td>5/hr</td></tr>
+            <tr><td>Tasks</td><td>0</td><td>0</td><td>10</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="cards-2col" style="margin-top:12px;">
+        <div class="card">
+          <h4>Audit Trail</h4>
+          <p>Every state modification logged. JSONL format.</p>
+          <p style="font-family:'IBM Plex Mono',monospace; font-size:9px; color:var(--text-muted); margin-top:4px;">{timestamp, agent, mode, action, target, confidence, outcome}</p>
+        </div>
+        <div class="card">
+          <h4>Prohibited (Always)</h4>
+          <ul>
+            <li>No deleting data</li>
+            <li>No sending messages</li>
+            <li>No financial actions</li>
+            <li>No credential access</li>
+            <li>No force operations</li>
+            <li>No self-modifying rules</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPROVE -->
+  <div class="zone zone-improve">
+    <div class="zone-head">Improve -- Self-Evolution</div>
+    <div class="zone-body">
+      <div class="cards-2col" style="margin-bottom:12px;">
+        <div class="card">
+          <h4>autoimprove -- The Lab</h4>
+          <p style="font-size:11px; color:var(--green); margin-bottom:8px;">Scheduled Optimization</p>
+          <div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:8px;">
+            <span class="flow-tag green">test cases</span>
+            <span style="color:var(--text-muted); font-size:11px;">&rarr;</span>
+            <span class="flow-tag green">score</span>
+            <span style="color:var(--text-muted); font-size:11px;">&rarr;</span>
+            <span class="flow-tag green">propose</span>
+            <span style="color:var(--text-muted); font-size:11px;">&rarr;</span>
+            <span class="flow-tag green">validate</span>
+          </div>
+          <p style="font-size:11px;"><strong>Git Ratchet:</strong> commit on improve, reset on regress.</p>
+          <p style="font-size:11px; margin-top:6px;"><strong>Three-File Contract:</strong></p>
+          <ul>
+            <li>Immutable evaluator</li>
+            <li>Editable agent file</li>
+            <li>Human directive</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h4>OpenSpace -- Immune System</h4>
+          <p style="font-size:11px; color:var(--green); margin-bottom:8px;">Continuous Evolution</p>
+          <div class="evo-item">
+            <strong>Fix</strong>
+            <p>Repair broken agent in-place. Triggered by failures.</p>
+          </div>
+          <div class="evo-item">
+            <strong>Derived</strong>
+            <p>Specialize from success. Creates new variant.</p>
+          </div>
+          <div class="evo-item">
+            <strong>Captured</strong>
+            <p>Extract novel pattern as new agent.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cards-2col">
+        <div class="card">
+          <h4>6 Scoring Dimensions</h4>
+          <p style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">Weighted by agent type</p>
+          <div class="dim-grid">
+            <div class="dim-item">Completeness<br/><span style="opacity:0.6">0.25</span></div>
+            <div class="dim-item">Accuracy<br/><span style="opacity:0.6">0.30</span></div>
+            <div class="dim-item">Structure<br/><span style="opacity:0.6">0.05</span></div>
+            <div class="dim-item">Confidence<br/><span style="opacity:0.6">0.10</span></div>
+            <div class="dim-item">Actionability<br/><span style="opacity:0.6">0.15</span></div>
+            <div class="dim-item">Specificity<br/><span style="opacity:0.6">0.15</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>When to Use What</h4>
+          <table style="width:100%; font-size:12px; border-collapse:collapse; margin-top:4px;">
+            <tr><td style="padding:4px 0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--green); width:60px;">&lt; 50</td><td style="padding:4px 0;">OpenSpace fix (structural)</td></tr>
+            <tr><td style="padding:4px 0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--green);">50-75</td><td style="padding:4px 0;">OpenSpace + autoimprove</td></tr>
+            <tr><td style="padding:4px 0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--green);">75-85</td><td style="padding:4px 0;">autoimprove only (polish)</td></tr>
+            <tr><td style="padding:4px 0; font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--green);">&gt; 85</td><td style="padding:4px 0;">Leave alone</td></tr>
+          </table>
+          <div class="callout callout-green" style="margin-top:10px;">
+            <div class="callout-title">Cost</div>
+            ~$0.19/iteration &middot; ~$5/full run &middot; ~$100-200/mo
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /board -->
+
+</body>
+</html>

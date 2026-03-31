@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Forge -- Workflow</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg: #ffffff;
+  --bg-zone: #fafbfc;
+  --border: #d0d7de;
+  --border-light: #e8ecf0;
+  --text: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --blue: #0969da;
+  --blue-bg: #ddf4ff;
+  --blue-border: #b6e3ff;
+  --purple: #8250df;
+  --purple-bg: #fbefff;
+  --purple-border: #e2b6ff;
+  --amber: #bf8700;
+  --amber-bg: #fff8c5;
+  --amber-border: #f5e0a0;
+  --green: #1a7f37;
+  --green-bg: #dafbe1;
+  --green-border: #a7f0ba;
+  --slate: #24292f;
+  --slate-bg: #f6f8fa;
+  --slate-border: #d0d7de;
+  --red: #cf222e;
+  --red-bg: #ffebe9;
+  --red-border: #ffcecb;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(31,35,40,0.04), 0 1px 2px rgba(31,35,40,0.06);
+  --shadow-hover: 0 4px 12px rgba(31,35,40,0.08), 0 2px 4px rgba(31,35,40,0.06);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 48px 24px 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+.header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.header p {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Main container */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ---- THE LOOP ---- */
+.loop-track {
+  position: relative;
+}
+
+/* Vertical spine */
+.loop-track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border);
+  transform: translateX(-50%);
+  z-index: 0;
+}
+
+/* Step */
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  align-items: start;
+  margin-bottom: 0;
+}
+
+/* Center node */
+.step-node {
+  grid-column: 2;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  z-index: 2;
+  border: 2px solid;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Content card -- alternating sides */
+.step-content {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  background: var(--bg);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+.step-content:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--border);
+}
+
+/* Left-aligned content */
+.step.left .step-content {
+  grid-column: 1;
+  grid-row: 1;
+  text-align: right;
+}
+.step.left .step-node {
+  grid-row: 1;
+}
+.step.left .step-empty {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+/* Right-aligned content */
+.step.right .step-content {
+  grid-column: 3;
+  grid-row: 1;
+}
+.step.right .step-node {
+  grid-row: 1;
+}
+.step.right .step-empty {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+/* Connector arm */
+.step.left .step-content::after {
+  content: '';
+  position: absolute;
+  right: -7px;
+  top: 22px;
+  width: 0; height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 7px solid var(--border-light);
+}
+.step.right .step-content::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 22px;
+  width: 0; height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-right: 7px solid var(--border-light);
+}
+
+.step-content h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.step-content .step-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.step-content p {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.step-content ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 8px;
+}
+.step-content li {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+
+/* Align list items for right-aligned cards */
+.step.left .step-content ul {
+  text-align: right;
+}
+.step.left .step-content li {
+  padding-right: 14px;
+  position: relative;
+}
+.step.left .step-content li::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.step.right .step-content li {
+  padding-left: 14px;
+  position: relative;
+}
+.step.right .step-content li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+/* Color variants */
+.step-purple .step-node { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple); }
+.step-purple .step-content h3 { color: var(--purple); }
+.step-purple .step-tag { background: var(--purple-bg); color: var(--purple); }
+.step-purple li::before, .step-purple li::after { background: var(--purple); opacity: 0.3; }
+
+.step-blue .step-node { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue); }
+.step-blue .step-content h3 { color: var(--blue); }
+.step-blue .step-tag { background: var(--blue-bg); color: var(--blue); }
+.step-blue li::before, .step-blue li::after { background: var(--blue); opacity: 0.3; }
+
+.step-green .step-node { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.step-green .step-content h3 { color: var(--green); }
+.step-green .step-tag { background: var(--green-bg); color: var(--green); }
+.step-green li::before, .step-green li::after { background: var(--green); opacity: 0.3; }
+
+.step-amber .step-node { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.step-amber .step-content h3 { color: var(--amber); }
+.step-amber .step-tag { background: var(--amber-bg); color: var(--amber); }
+.step-amber li::before, .step-amber li::after { background: var(--amber); opacity: 0.3; }
+
+.step-slate .step-node { background: var(--slate-bg); border-color: var(--slate-border); color: var(--slate); }
+.step-slate .step-content h3 { color: var(--slate); }
+.step-slate .step-tag { background: var(--slate-bg); color: var(--slate); }
+.step-slate li::before, .step-slate li::after { background: var(--slate); opacity: 0.3; }
+
+/* Spacer between steps */
+.step-spacer {
+  height: 24px;
+}
+
+/* ---- FEEDBACK LOOP ARROW ---- */
+.feedback-loop {
+  position: relative;
+  margin-top: 40px;
+  padding: 24px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+  background: var(--slate-bg);
+}
+.feedback-loop h3 {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--slate);
+  margin-bottom: 4px;
+}
+.feedback-loop p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto;
+}
+.feedback-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.feedback-node {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.fb-purple { background: var(--purple-bg); border-color: var(--purple-border); color: var(--purple); }
+.fb-blue { background: var(--blue-bg); border-color: var(--blue-border); color: var(--blue); }
+.fb-green { background: var(--green-bg); border-color: var(--green-border); color: var(--green); }
+.fb-amber { background: var(--amber-bg); border-color: var(--amber-border); color: var(--amber); }
+.fb-slate { background: var(--slate-bg); border-color: var(--slate-border); color: var(--slate); }
+.fb-arrow { font-size: 16px; color: var(--text-muted); }
+
+/* ---- OUTPUT SUMMARY ---- */
+.output-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 8px;
+}
+.output-item {
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: var(--bg);
+}
+.output-item strong {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 3px;
+}
+
+/* Sub-steps */
+.substeps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.substep {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.substep.purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.substep.green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.substep.blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue-border); }
+.substep.amber { background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-border); }
+
+/* Callout inline */
+.inline-callout {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.callout-green {
+  background: var(--green-bg);
+  border: 1px dashed var(--green-border);
+  color: var(--green);
+}
+.callout-amber {
+  background: var(--amber-bg);
+  border: 1px dashed var(--amber-border);
+  color: var(--amber);
+}
+.callout-slate {
+  background: var(--slate-bg);
+  border: 1px dashed var(--slate-border);
+  color: var(--slate);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Agent Forge Workflow</h1>
+  <p>The loop: figure out what to build, build it, test it, improve it, learn from it, improve the forge itself.</p>
+</div>
+
+<div class="container">
+  <div class="loop-track">
+
+    <!-- ==================== STEP 1: ARRIVE ==================== -->
+    <div class="step right step-purple">
+      <div class="step-empty"></div>
+      <div class="step-node">1</div>
+      <div class="step-content">
+        <span class="step-tag">/algorithm &middot; Observe</span>
+        <h3>Arrive with an Idea</h3>
+        <p>You have a problem that needs an agent. Before building anything, run /algorithm phase 1: reverse-engineer what you actually need.</p>
+        <ul>
+          <li>What outcome does this agent produce?</li>
+          <li>What's explicitly needed vs implicitly wanted?</li>
+          <li>What should it NOT do?</li>
+          <li>What effort tier fits? (Standard to Comprehensive)</li>
+        </ul>
+        <div class="inline-callout callout-amber" style="text-align:left;">
+          <strong style="font-family:'IBM Plex Mono',monospace; font-size:10px;">Key output:</strong> ISC -- Ideal State Criteria that define "done" before you write a line.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 2: DESIGN ==================== -->
+    <div class="step left step-blue">
+      <div class="step-content">
+        <span class="step-tag">Build Zone</span>
+        <h3>Design the Agent</h3>
+        <p>Copy the template. Fill in all 9 sections of the Agent Standard. Apply proven patterns. Avoid anti-patterns.</p>
+        <div class="substeps" style="justify-content:flex-end;">
+          <span class="substep blue">Template</span>
+          <span class="substep blue">9 Requirements</span>
+          <span class="substep blue">Bloat Test</span>
+          <span class="substep blue">ISC Check</span>
+        </div>
+        <ul>
+          <li>Mission: one sentence, one job</li>
+          <li>Scope: explicit in/out/handoffs</li>
+          <li>Decision logic: if/then, not principles</li>
+          <li>Failure protocol: what happens when it breaks</li>
+          <li>Success criteria: measurable, not aspirational</li>
+        </ul>
+      </div>
+      <div class="step-node">2</div>
+      <div class="step-empty"></div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 3: SHIP V1 ==================== -->
+    <div class="step right step-purple">
+      <div class="step-empty"></div>
+      <div class="step-node">3</div>
+      <div class="step-content">
+        <span class="step-tag">/algorithm &middot; Execute</span>
+        <h3>Ship v1.0</h3>
+        <p>Deploy the agent. Set governance to Observe mode. Create initial trust score. Register it. The agent is live but read-only.</p>
+        <div class="substeps">
+          <span class="substep amber">Observe Mode</span>
+          <span class="substep amber">Trust: 10</span>
+          <span class="substep amber">Blast Radius: 0</span>
+        </div>
+        <div class="inline-callout callout-amber" style="text-align:left;">
+          <strong style="font-family:'IBM Plex Mono',monospace; font-size:10px;">No shortcuts.</strong> Every agent starts in Observe. Trust is earned.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 4: SCORE BASELINE ==================== -->
+    <div class="step left step-green">
+      <div class="step-content">
+        <span class="step-tag">autoimprove</span>
+        <h3>Score the Baseline</h3>
+        <p>Write test cases. Write a directive. Run autoimprove to get your baseline score across 6 dimensions.</p>
+        <div class="substeps" style="justify-content:flex-end;">
+          <span class="substep green">Test Cases</span>
+          <span class="substep green">Directive</span>
+          <span class="substep green">Baseline Run</span>
+        </div>
+        <div class="output-grid" style="margin-top:12px;">
+          <div class="output-item" style="text-align:right;">
+            <strong style="color:var(--green);">Inputs</strong>
+            2-3 test cases (JSON)<br/>1 improvement directive
+          </div>
+          <div class="output-item" style="text-align:right;">
+            <strong style="color:var(--green);">Output</strong>
+            Composite score (0-100)<br/>Per-dimension breakdown
+          </div>
+        </div>
+      </div>
+      <div class="step-node">4</div>
+      <div class="step-empty"></div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 5: IMPROVE ==================== -->
+    <div class="step right step-green">
+      <div class="step-empty"></div>
+      <div class="step-node">5</div>
+      <div class="step-content">
+        <span class="step-tag">autoimprove + OpenSpace</span>
+        <h3>Improve the Agent</h3>
+        <p>Run the improvement loop. autoimprove proposes changes, validates them, commits winners, reverts losers. OpenSpace watches real usage and fixes failures on the fly.</p>
+        <div class="substeps">
+          <span class="substep green">Score</span>
+          <span class="substep green">Propose</span>
+          <span class="substep green">Validate</span>
+          <span class="substep green">Commit / Reset</span>
+          <span class="substep green">Repeat</span>
+        </div>
+        <ul>
+          <li>Git ratchet: quality only goes up</li>
+          <li>Three-file contract: evaluator is immutable</li>
+          <li>Cost: ~$0.19 per iteration</li>
+          <li>Convergence detection: stops when gains plateau</li>
+        </ul>
+        <div class="inline-callout callout-green" style="text-align:left;">
+          <strong style="font-family:'IBM Plex Mono',monospace; font-size:10px;">Promote when ready:</strong> diff the improved file, review, copy to production.
+        </div>
+      </div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 6: GOVERN ==================== -->
+    <div class="step left step-amber">
+      <div class="step-content">
+        <span class="step-tag">Governance</span>
+        <h3>Earn Trust, Gain Power</h3>
+        <p>As the agent proves itself, its trust score rises. When criteria are met, promote it from Observe to Suggest, eventually to Autonomous.</p>
+        <div class="substeps" style="justify-content:flex-end;">
+          <span class="substep amber">Observe 0-39</span>
+          <span class="substep amber">Suggest 40-79</span>
+          <span class="substep amber">Autonomous 80-100</span>
+        </div>
+        <ul>
+          <li>Each success: +3 to +5 trust</li>
+          <li>Each failure: -5 to -20 trust</li>
+          <li>Promotion requires human approval</li>
+          <li>Blast radius expands with trust</li>
+        </ul>
+      </div>
+      <div class="step-node">6</div>
+      <div class="step-empty"></div>
+    </div>
+
+    <div class="step-spacer"></div>
+
+    <!-- ==================== STEP 7: LEARN ==================== -->
+    <div class="step right step-slate">
+      <div class="step-empty"></div>
+      <div class="step-node">7</div>
+      <div class="step-content">
+        <span class="step-tag">/algorithm &middot; Learn</span>
+        <h3>Learn from the Build</h3>
+        <p>Extract what worked and what didn't. This is where Agent Forge improves itself.</p>
+        <ul>
+          <li>Did a new pattern emerge? Add to Proven Patterns.</li>
+          <li>Did a trap surface? Add to Anti-Patterns.</li>
+          <li>Did the scoring weights feel wrong? Adjust config.py.</li>
+          <li>Did a test case miss a failure mode? Add it.</li>
+          <li>Did the standard miss a requirement? Propose it.</li>
+        </ul>
+        <div class="inline-callout callout-slate" style="text-align:left;">
+          <strong style="font-family:'IBM Plex Mono',monospace; font-size:10px;">This is the meta-loop.</strong> Every agent you build makes Agent Forge better for the next one.
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /loop-track -->
+
+  <!-- ==================== FEEDBACK LOOP ==================== -->
+  <div class="feedback-loop">
+    <h3>The Forge Gets Sharper</h3>
+    <p>Every agent you build feeds learnings back into the framework. Better patterns, better anti-patterns, better scoring, better standards. The system compounds.</p>
+
+    <div class="feedback-arrow">
+      <div class="feedback-node fb-purple">Idea</div>
+      <span class="fb-arrow">&rarr;</span>
+      <div class="feedback-node fb-blue">Build</div>
+      <span class="fb-arrow">&rarr;</span>
+      <div class="feedback-node fb-green">Test & Improve</div>
+      <span class="fb-arrow">&rarr;</span>
+      <div class="feedback-node fb-amber">Govern</div>
+      <span class="fb-arrow">&rarr;</span>
+      <div class="feedback-node fb-slate">Learn</div>
+      <span class="fb-arrow">&rarr;</span>
+      <div class="feedback-node fb-purple" style="border-style:dashed;">Better Forge</div>
+    </div>
+
+    <div class="output-grid" style="max-width:640px; margin:20px auto 0;">
+      <div class="output-item">
+        <strong style="color:var(--green);">What Improves Each Agent</strong>
+        autoimprove scoring loop, OpenSpace real-time fixes, trust score progression, assessment rubric
+      </div>
+      <div class="output-item">
+        <strong style="color:var(--slate);">What Improves the Forge</strong>
+        New proven patterns, new anti-patterns, better scoring weights, sharper test cases, updated standards
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
