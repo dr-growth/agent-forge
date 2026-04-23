@@ -1,16 +1,16 @@
 """
-Agent execution harness.
+Skill execution harness.
 
-Loads an agent .md file as a system prompt, executes it against
+Loads a PAIOS skill .md file as a system prompt, executes it against
 a test case via Claude API, and captures the full output + metadata.
 
-The runner is READ-ONLY with respect to the agent file. It never modifies it.
+The runner is READ-ONLY with respect to the skill file. It never modifies it.
 
 Usage:
     from src.runner import run_skill
-    result = run_skill("researcher", test_case)
-    print(result.output)
-    print(result.tokens_in, result.tokens_out)
+    result = run_skill("scout", test_case)
+    print(result["output"])
+    print(result["tokens_in"], result["tokens_out"])
 """
 
 import time
@@ -23,7 +23,7 @@ from .config import (
     get_api_key,
     RUNNER_MODEL,
     RUNNER_MAX_TOKENS,
-    AGENTS_DIR,
+    SKILLS_DIR,
     COST_PER_1M_INPUT,
     COST_PER_1M_OUTPUT,
 )
@@ -31,7 +31,7 @@ from .config import (
 
 @dataclass
 class TestCase:
-    """A test case for agent execution."""
+    """A test case for skill execution."""
     name: str
     input_prompt: str
     ground_truth: str  # What a good answer includes (for evaluator)
@@ -47,7 +47,7 @@ class TestCase:
 
 @dataclass
 class RunResult:
-    """Result of a single agent execution."""
+    """Result of a single skill execution."""
     output: str
     tokens_in: int
     tokens_out: int
@@ -62,13 +62,13 @@ class RunResult:
 
 
 def load_skill(skill_name: str, skill_path: Path | None = None) -> str:
-    """Load an agent .md file as a string."""
+    """Load a skill .md file as a string."""
     if skill_path:
         path = skill_path
     else:
-        path = AGENTS_DIR / f"{skill_name}.md"
+        path = SKILLS_DIR / f"{skill_name}.md"
     if not path.exists():
-        raise FileNotFoundError(f"Agent file not found: {path}")
+        raise FileNotFoundError(f"Skill file not found: {path}")
     return path.read_text()
 
 
@@ -78,12 +78,12 @@ def run_skill(
     skill_path: Path | None = None,
 ) -> RunResult:
     """
-    Execute an agent against a test case via Claude API.
+    Execute a skill against a test case via Claude API.
 
-    The agent .md content becomes the system prompt.
+    The skill .md content becomes the system prompt.
     The test case input becomes the user message.
 
-    If skill_path is provided, reads from that path instead of the default.
+    If skill_path is provided, reads from that path instead of the default location.
     """
     skill_content = load_skill(skill_name, skill_path)
     client = anthropic.Anthropic(api_key=get_api_key())
@@ -123,5 +123,5 @@ def run_skill_on_cases(
     test_cases: list[TestCase],
     skill_path: Path | None = None,
 ) -> list[RunResult]:
-    """Run an agent against multiple test cases."""
+    """Run a skill against multiple test cases."""
     return [run_skill(skill_name, tc, skill_path) for tc in test_cases]

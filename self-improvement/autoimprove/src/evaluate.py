@@ -1,15 +1,15 @@
 """
-Automated multi-dimensional scoring for agent output.
+Automated multi-dimensional scoring for PAIOS skill output.
 
 The evaluator is IMMUTABLE during improvement loops.
-It scores agent output on 6 dimensions and returns a composite score.
+It scores skill output on 6 dimensions and returns a composite score.
 
 Three dimensions use heuristic checks (deterministic):
   - completeness: does output cover expected sections?
   - structure: does output follow expected format?
   - confidence_calibration: are confidence scores properly distributed?
 
-Three dimensions use Claude as judge (semantic):
+Three dimensions use Claude Haiku as judge (semantic):
   - accuracy: are factual claims specific and verifiable?
   - specificity: are claims concrete vs. generic filler?
   - actionability: does output feed downstream agents?
@@ -17,8 +17,8 @@ Three dimensions use Claude as judge (semantic):
 Usage:
     from src.evaluate import evaluate
     result = evaluate(output_text, schema, ground_truth, skill_type="research")
-    print(result.composite)  # float 0-100
-    print(result.dimensions)  # dict of dimension -> score
+    print(result["composite"])  # float 0-100
+    print(result["dimensions"])  # dict of dimension -> score
 """
 
 import re
@@ -32,6 +32,7 @@ from .config import (
     JUDGE_MODEL,
     JUDGE_MAX_TOKENS,
     SCORING_WEIGHTS,
+    SKILL_TYPES,
 )
 
 
@@ -64,6 +65,7 @@ def score_completeness(output: str, schema: dict) -> tuple[float, str]:
     scores = []
     reasons = []
 
+    # Check required sections
     required_sections = schema.get("required_sections", [])
     if required_sections:
         found = sum(1 for s in required_sections if s.lower() in output.lower())
@@ -71,6 +73,7 @@ def score_completeness(output: str, schema: dict) -> tuple[float, str]:
         scores.append(section_score)
         reasons.append(f"sections: {found}/{len(required_sections)}")
 
+    # Check required fields/patterns
     required_fields = schema.get("required_fields", [])
     if required_fields:
         found = sum(1 for f in required_fields if f.lower() in output.lower())
@@ -78,6 +81,7 @@ def score_completeness(output: str, schema: dict) -> tuple[float, str]:
         scores.append(field_score)
         reasons.append(f"fields: {found}/{len(required_fields)}")
 
+    # Check minimum word count
     min_words = schema.get("min_word_count", 0)
     if min_words > 0:
         word_count = len(output.split())
@@ -101,32 +105,36 @@ def score_structure(output: str, schema: dict) -> tuple[float, str]:
     scores = []
     reasons = []
 
+    # Has markdown headers
     headers = re.findall(r'^#{1,4}\s+.+', output, re.MULTILINE)
     if headers:
-        header_score = min(100, len(headers) * 15)
+        header_score = min(100, len(headers) * 15)  # ~7 headers = 100
         scores.append(header_score)
         reasons.append(f"headers: {len(headers)}")
     else:
         scores.append(0)
         reasons.append("no headers")
 
+    # Has bullet points or numbered lists
     bullets = re.findall(r'^\s*[-*]\s+.+', output, re.MULTILINE)
     numbered = re.findall(r'^\s*\d+\.\s+.+', output, re.MULTILINE)
     list_items = len(bullets) + len(numbered)
     if list_items > 0:
-        list_score = min(100, list_items * 8)
+        list_score = min(100, list_items * 8)  # ~12 items = 100
         scores.append(list_score)
         reasons.append(f"list items: {list_items}")
     else:
         scores.append(20)
         reasons.append("no lists")
 
+    # Section ordering matches schema
     expected_order = schema.get("required_sections", [])
     if len(expected_order) >= 2:
         positions = []
         for section in expected_order:
             pos = output.lower().find(section.lower())
             positions.append(pos if pos >= 0 else float('inf'))
+        # Check if positions are monotonically increasing
         ordered = all(a <= b for a, b in zip(positions, positions[1:]))
         order_score = 100 if ordered else 40
         scores.append(order_score)
@@ -143,7 +151,9 @@ def score_confidence_calibration(output: str, _schema: dict) -> tuple[float, str
     Score based on proper distribution of confidence levels.
 
     Good calibration: mix of HIGH/MEDIUM/LOW, not all one level.
+    Checks for confidence markers in the output.
     """
+    # Find confidence markers
     high_count = len(re.findall(r'\b(?:HIGH|high confidence|0\.[89]\d*|0\.9\d*|1\.0)\b', output))
     med_count = len(re.findall(r'\b(?:MEDIUM|medium confidence|0\.[67]\d*)\b', output))
     low_count = len(re.findall(r'\b(?:LOW|low confidence|0\.[0-5]\d*)\b', output))
@@ -152,6 +162,7 @@ def score_confidence_calibration(output: str, _schema: dict) -> tuple[float, str
     if total == 0:
         return 20.0, "no confidence indicators found"
 
+    # Penalize if all one level
     counts = [high_count, med_count, low_count]
     nonzero = sum(1 for c in counts if c > 0)
 
@@ -160,13 +171,14 @@ def score_confidence_calibration(output: str, _schema: dict) -> tuple[float, str
     elif nonzero == 2:
         return 70.0, f"two confidence levels ({high_count}H/{med_count}M/{low_count}L)"
     else:
+        # Check for reasonable distribution (not 90% HIGH)
         if total > 0 and max(counts) / total > 0.8:
             return 60.0, f"skewed distribution ({high_count}H/{med_count}M/{low_count}L)"
         return 90.0, f"well distributed ({high_count}H/{med_count}M/{low_count}L)"
 
 
 # ---------------------------------------------------------------------------
-# Semantic dimensions (Claude as judge)
+# Semantic dimensions (Haiku as judge)
 # ---------------------------------------------------------------------------
 
 JUDGE_PROMPT = """You are an expert evaluator scoring AI agent output quality.
@@ -196,7 +208,7 @@ Respond with ONLY a JSON object:
 DIMENSION_DEFS = {
     "accuracy": (
         "Are factual claims specific and verifiable? Does the output cite real sources, "
-        "reference real entities, and avoid making things up? Penalize "
+        "reference real companies/people/data, and avoid making things up? Penalize "
         "hallucinated facts, vague unsourced claims, and confident statements about "
         "things that don't match the ground truth."
     ),
@@ -204,7 +216,7 @@ DIMENSION_DEFS = {
         "Are claims concrete and detailed rather than generic filler? Does the output "
         "contain specific numbers, names, dates, and facts rather than vague platitudes "
         "like 'industry-leading' or 'comprehensive solution'? Penalize hand-wavy language, "
-        "corporate buzzwords, and statements that could apply to anything."
+        "corporate buzzwords, and statements that could apply to any company."
     ),
     "actionability": (
         "Does the output provide information that downstream agents or humans can act on? "
@@ -221,12 +233,12 @@ def score_semantic_dimension(
     ground_truth: str,
     client: anthropic.Anthropic,
 ) -> tuple[float, str]:
-    """Score a single semantic dimension using Claude as judge."""
+    """Score a single semantic dimension using Haiku as judge."""
     prompt = JUDGE_PROMPT.format(
         dimension=dimension,
         dimension_def=DIMENSION_DEFS[dimension],
         ground_truth=ground_truth,
-        output=output[:8000],
+        output=output[:8000],  # truncate to control cost
     )
 
     response = client.messages.create(
@@ -236,7 +248,9 @@ def score_semantic_dimension(
     )
 
     text = response.content[0].text.strip()
+    # Parse JSON from response
     try:
+        # Handle markdown code blocks
         if "```" in text:
             text = re.search(r'```(?:json)?\s*(.*?)\s*```', text, re.DOTALL).group(1)
         data = json.loads(text)
@@ -258,10 +272,10 @@ def evaluate(
     skill_type: str = "research",
 ) -> EvalResult:
     """
-    Score agent output on 6 dimensions and return composite score.
+    Score skill output on 6 dimensions and return composite score.
 
     Args:
-        output: The full text output from the agent execution
+        output: The full text output from the skill execution
         schema: Expected output structure (sections, fields, word count)
         ground_truth: What a good answer would include (for semantic scoring)
         skill_type: One of "research", "execution", "infrastructure"

@@ -1,26 +1,25 @@
 """
 Main improvement loop engine.
 
-Follows Karpathy's autoresearch pattern adapted for agent files:
-1. Read current agent file
-2. Run agent against test cases (runner.py)
+Follows Karpathy's autoresearch pattern adapted for PAIOS skills:
+1. Read current skill file
+2. Run skill against test cases (runner.py)
 3. Score output (evaluate.py)
 4. Propose modification via Claude API
-5. Apply modification to agent file
+5. Apply modification to skill file
 6. Run again, score again
 7. If improved: git commit (preserve)
 8. If regressed: git reset (discard)
 9. Log experiment results
-10. Repeat until convergence or cost cap
+10. Repeat until convergence or interruption
 
 Usage:
-    python -m src.loop --skill researcher
-    python -m src.loop --skill researcher --max-iterations 10
+    uv run -m src.loop --skill scout
+    uv run -m src.loop --skill scout --max-iterations 10
 """
 
 import argparse
 import json
-import re
 import shutil
 import subprocess
 import sys
@@ -33,7 +32,7 @@ import anthropic
 from .config import (
     get_api_key,
     PROJECT_ROOT,
-    AGENTS_DIR,
+    SKILLS_DIR,
     TEST_CASES_DIR,
     DIRECTIVES_DIR,
     RESULTS_DIR,
@@ -50,7 +49,7 @@ from .config import (
 from .runner import TestCase, run_skill_on_cases
 from .evaluate import evaluate
 
-# Working directory for agent copies (git-tracked within this project)
+# Working directory for skill copies (git-tracked within this project)
 WORK_DIR = PROJECT_ROOT / "work"
 
 
@@ -58,9 +57,9 @@ WORK_DIR = PROJECT_ROOT / "work"
 # Proposal generation
 # ---------------------------------------------------------------------------
 
-PROPOSE_PROMPT = """You are an expert prompt engineer improving an AI agent file.
+PROPOSE_PROMPT = """You are an expert prompt engineer improving a PAIOS skill file.
 
-## Current Agent File
+## Current Skill File
 ```
 {skill_content}
 ```
@@ -75,18 +74,18 @@ PROPOSE_PROMPT = """You are an expert prompt engineer improving an AI agent file
 {eval_feedback}
 
 ## Your Task
-Propose a SPECIFIC modification to the agent file that will improve the composite score.
+Propose a SPECIFIC modification to the skill file that will improve the composite score.
 
 Rules:
-- Output the COMPLETE modified agent file (not a diff)
+- Output the COMPLETE modified skill file (not a diff)
 - Make ONE focused change per proposal (not a rewrite)
 - Focus on the lowest-scoring dimensions
 - Do NOT change: governance section, model assignment, scope boundaries, tool manifest
 - DO change: instruction text, output format guidance, examples, decision logic, confidence calibration rules
 
-Respond with the complete modified agent file content, wrapped in <skill> tags:
+Respond with the complete modified skill file content, wrapped in <skill> tags:
 <skill>
-[complete modified agent file here]
+[complete modified skill file here]
 </skill>"""
 
 
@@ -100,9 +99,9 @@ def propose_modification(
     client: anthropic.Anthropic,
 ) -> tuple[str, int, int]:
     """
-    Ask Claude to propose a modification to the agent file.
+    Ask Claude to propose a modification to the skill file.
 
-    Returns: (modified_content, tokens_in, tokens_out)
+    Returns: (modified_skill_content, tokens_in, tokens_out)
     """
     scores_summary = "\n".join(
         f"  {dim}: {score:.1f}/100 -- {reasoning.get(dim, '')}"
@@ -116,7 +115,7 @@ def propose_modification(
         eval_feedback += f"Scores: {json.dumps(to['dimensions'], indent=2)}\n"
 
     prompt = PROPOSE_PROMPT.format(
-        skill_content=skill_content[:12000],
+        skill_content=skill_content[:12000],  # truncate very long skills
         directive=directive,
         composite=f"{composite:.1f}",
         scores_summary=scores_summary,
@@ -125,15 +124,19 @@ def propose_modification(
 
     response = client.messages.create(
         model=PROPOSER_MODEL,
-        max_tokens=PROPOSER_MAX_TOKENS * 4,
+        max_tokens=PROPOSER_MAX_TOKENS * 4,  # skill files can be large
         messages=[{"role": "user", "content": prompt}],
     )
 
     text = response.content[0].text
+
+    # Extract skill content from <skill> tags
+    import re
     match = re.search(r'<skill>\s*(.*?)\s*</skill>', text, re.DOTALL)
     if match:
         modified = match.group(1)
     else:
+        # Fallback: assume entire response is the skill file
         modified = text
 
     return modified, response.usage.input_tokens, response.usage.output_tokens
@@ -153,7 +156,7 @@ def git(cmd: str, cwd: Path | None = None) -> str:
 
 
 def git_commit(skill_path: Path, message: str):
-    """Stage and commit changes to an agent file."""
+    """Stage and commit changes to a skill file."""
     subprocess.run(["git", "add", str(skill_path)], cwd=PROJECT_ROOT, check=True)
     subprocess.run(
         ["git", "commit", "-m", message],
@@ -162,7 +165,7 @@ def git_commit(skill_path: Path, message: str):
 
 
 def git_reset_file(skill_path: Path):
-    """Reset an agent file to the last committed state."""
+    """Reset a skill file to the last committed state."""
     subprocess.run(
         ["git", "checkout", "HEAD", "--", str(skill_path)],
         cwd=PROJECT_ROOT, capture_output=True,
@@ -188,9 +191,9 @@ def setup_branch(skill_name: str):
 
 
 def setup_work_copy(skill_name: str) -> Path:
-    """Copy an agent file into the work directory for git-tracked modification."""
+    """Copy a skill file into the work directory for git-tracked modification."""
     WORK_DIR.mkdir(parents=True, exist_ok=True)
-    source = AGENTS_DIR / f"{skill_name}.md"
+    source = SKILLS_DIR / f"{skill_name}.md"
     dest = WORK_DIR / f"{skill_name}.md"
     shutil.copy2(source, dest)
     return dest
@@ -205,7 +208,7 @@ def log_experiment(
     iteration: int,
     old_score: float,
     new_score: float,
-    status: str,
+    status: str,  # "keep" | "discard" | "error"
     change_summary: str,
     cost_usd: float,
     commit_hash: str = "",
@@ -237,7 +240,7 @@ def log_experiment(
 # ---------------------------------------------------------------------------
 
 def load_test_cases(skill_name: str) -> list[TestCase]:
-    """Load all test cases for an agent."""
+    """Load all test cases for a skill."""
     tc_dir = TEST_CASES_DIR / skill_name
     if not tc_dir.exists():
         raise FileNotFoundError(f"No test cases found at {tc_dir}")
@@ -250,7 +253,7 @@ def load_test_cases(skill_name: str) -> list[TestCase]:
 
 
 def load_directive(skill_name: str) -> str:
-    """Load the improvement directive for an agent."""
+    """Load the improvement directive for a skill."""
     path = DIRECTIVES_DIR / f"{skill_name}.md"
     if not path.exists():
         return "Improve overall quality: specificity, structure, confidence calibration, actionability."
@@ -264,7 +267,7 @@ def score_skill(
     skill_path: Path | None = None,
 ) -> tuple[float, dict, dict, list[dict], float]:
     """
-    Run agent against all test cases and return aggregate score.
+    Run skill against all test cases and return aggregate score.
 
     Returns: (composite, avg_dimensions, avg_reasoning, per_case_results, total_cost)
     """
@@ -287,6 +290,7 @@ def score_skill(
             "reasoning": er.reasoning,
         })
 
+    # Average across test cases
     composites = [er["composite"] for er in eval_results]
     composite = sum(composites) / len(composites)
 
@@ -305,20 +309,20 @@ def score_skill(
 
 def run_loop(skill_name: str, max_iterations: int = 50):
     """
-    Main improvement loop for a single agent.
+    Main improvement loop for a single skill.
 
-    This is the autoresearch pattern:
-    - The agent .md file is the only thing modified
-    - The evaluator is immutable during the run
+    This is the autoresearch pattern adapted for PAIOS:
+    - The skill .md file is the only thing modified (like train.py)
+    - The evaluator is immutable during the run (like prepare.py)
     - Git commit on improvement, git reset on regression
 
-    The agent file is COPIED into work/ for modification.
-    The original is never touched during the loop.
+    The skill file is COPIED into work/ for modification.
+    The original in ~/.claude/agents/ is never touched during the loop.
     After the loop, the improved copy can be manually promoted.
     """
-    source_path = AGENTS_DIR / f"{skill_name}.md"
+    source_path = SKILLS_DIR / f"{skill_name}.md"
     if not source_path.exists():
-        print(f"ERROR: Agent file not found: {source_path}")
+        print(f"ERROR: Skill file not found: {source_path}")
         sys.exit(1)
 
     skill_type = SKILL_TYPES.get(skill_name, "research")
@@ -326,20 +330,22 @@ def run_loop(skill_name: str, max_iterations: int = 50):
     directive = load_directive(skill_name)
     client = anthropic.Anthropic(api_key=get_api_key())
 
+    # Copy skill into work directory (git-tracked)
     skill_path = setup_work_copy(skill_name)
 
     print(f"=== autoimprove: {skill_name} ===")
-    print(f"Agent type: {skill_type}")
+    print(f"Skill type: {skill_type}")
     print(f"Test cases: {len(test_cases)}")
     print(f"Source: {source_path}")
     print(f"Working copy: {skill_path}")
     print()
 
+    # Setup git branch and commit initial copy
     branch = setup_branch(skill_name)
     git_commit(skill_path, f"autoimprove({skill_name}): initial copy for improvement run")
     print(f"Branch: {branch}")
 
-    # Baseline run
+    # Baseline run (using the work copy)
     print("\n--- Baseline ---")
     baseline_score, baseline_dims, baseline_reasons, baseline_results, baseline_cost = (
         score_skill(skill_name, test_cases, skill_type, skill_path)
@@ -370,12 +376,15 @@ def run_loop(skill_name: str, max_iterations: int = 50):
     for iteration in range(1, max_iterations + 1):
         print(f"\n--- Iteration {iteration} ---")
 
+        # Check cost cap
         if total_cost >= COST_CAP_PER_RUN:
             print(f"Cost cap reached (${total_cost:.2f} >= ${COST_CAP_PER_RUN}). Stopping.")
             break
 
+        # Read current skill content
         skill_content = skill_path.read_text()
 
+        # Propose modification
         print("Proposing modification...")
         try:
             modified_content, prop_in, prop_out = propose_modification(
@@ -405,6 +414,7 @@ def run_loop(skill_name: str, max_iterations: int = 50):
             )
             continue
 
+        # Sanity check: modification shouldn't be empty or identical
         if not modified_content.strip():
             print("Empty modification proposed. Skipping.")
             continue
@@ -412,10 +422,12 @@ def run_loop(skill_name: str, max_iterations: int = 50):
             print("Identical content proposed. Skipping.")
             continue
 
+        # Apply modification
         backup = skill_content
         skill_path.write_text(modified_content)
 
-        print("Scoring modified agent...")
+        # Score the modified skill
+        print("Scoring modified skill...")
         try:
             new_score, new_dims, new_reasons, new_results, run_cost = (
                 score_skill(skill_name, test_cases, skill_type, skill_path)
@@ -431,7 +443,7 @@ def run_loop(skill_name: str, max_iterations: int = 50):
                 new_score=current_score,
                 status="error",
                 change_summary=f"scoring failed: {e}",
-                cost_usd=0,
+                cost_usd=run_cost if 'run_cost' in dir() else 0,
             )
             continue
 
@@ -444,6 +456,7 @@ def run_loop(skill_name: str, max_iterations: int = 50):
             print(f"  {dim}: {old:.1f} -> {new:.1f} [{marker}]")
 
         if delta > 0:
+            # Improvement: commit
             print(f"IMPROVED by {delta:.1f}. Committing.")
             commit_msg = (
                 f"autoimprove({skill_name}): {current_score:.1f} -> {new_score:.1f} "
@@ -471,6 +484,7 @@ def run_loop(skill_name: str, max_iterations: int = 50):
             current_results = new_results
             convergence_count = 0
         else:
+            # Regression or no change: reset
             print(f"No improvement (delta={delta:.1f}). Resetting.")
             skill_path.write_text(backup)
 
@@ -486,6 +500,7 @@ def run_loop(skill_name: str, max_iterations: int = 50):
                 dimensions_after=new_dims,
             )
 
+            # Check convergence
             if abs(delta) < CONVERGENCE_THRESHOLD:
                 convergence_count += 1
                 if convergence_count >= CONVERGENCE_RUNS:
@@ -499,22 +514,23 @@ def run_loop(skill_name: str, max_iterations: int = 50):
 
         print(f"Total cost: ${total_cost:.4f}")
 
+    # Summary
     total_delta = current_score - baseline_score
     print(f"\n=== Summary ===")
-    print(f"Agent: {skill_name}")
+    print(f"Skill: {skill_name}")
     print(f"Baseline: {baseline_score:.1f} -> Final: {current_score:.1f} (delta: {total_delta:+.1f})")
     print(f"Iterations: {iteration}")
     print(f"Total cost: ${total_cost:.4f}")
     print(f"Branch: {branch}")
     print(f"Working copy: {skill_path}")
     if total_delta > 0:
-        print(f"\nTo promote the improved agent:")
+        print(f"\nTo promote the improved skill:")
         print(f"  cp {skill_path} {source_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="autoimprove: autonomous agent improvement")
-    parser.add_argument("--skill", required=True, help="Agent name to improve (e.g., researcher)")
+    parser = argparse.ArgumentParser(description="autoimprove: autonomous skill improvement")
+    parser.add_argument("--skill", required=True, help="Skill name to improve (e.g., scout)")
     parser.add_argument("--max-iterations", type=int, default=50, help="Max improvement iterations")
     args = parser.parse_args()
 

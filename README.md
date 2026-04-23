@@ -178,6 +178,37 @@ Agent Forge treats AI agents like production software:
 
 The result: agents that are reliable, safe, and continuously getting better.
 
+## Production Snapshot (April 2026)
+
+Agent Forge is not theoretical. It manages a real portfolio in production.
+
+Current state after the April 2026 audit cycle:
+
+- **19 active agents** — down from 25 after portfolio audit flagged role overlap
+- **8 agents demoted to skills** — failed the "agent vs skill" test (execute HOW rather than decide WHAT)
+- **2 agents archived** — absorbed into higher-level orchestrators
+- **10 Opus / 9 Sonnet** model distribution — audited and adjusted from prior 14/11 split
+- **Governance Layer v1.0 deployed** — trust scoring active, blast radius enforced, audit logging operational
+- **autoimprove v2 in daily use** — agents improving themselves every two weeks
+
+Full governance specs in [governance/](governance/).
+
+## Governance Specifications
+
+Three companion specs for teams running agents in production:
+
+- **[governance/trust-score-spec.md](governance/trust-score-spec.md)** — Formula, thresholds, and decay model for the trust-scoring system that gates Observe → Suggest → Autonomous promotion
+- **[governance/audit-trail-spec.md](governance/audit-trail-spec.md)** — Logging schema, examples, and retention policy for every state-modifying action
+- **[governance/blast-radius-spec.md](governance/blast-radius-spec.md)** — Per-mode limits on files modified, external writes, messages sent, and prohibited operations
+
+## Related Projects
+
+Agent Forge is part of a three-repo toolkit for building, governing, and auditing your own AI operating system:
+
+- **[paios-template](https://github.com/dr-growth/paios-template)** — starter kit for bootstrapping a Personal AI Operating System. Scaffolded rules, hooks, commands, agents, skills, and frameworks.
+- **Agent Forge** (you are here) — standards, governance, and self-improvement for agent portfolios
+- **[os-audit](https://github.com/dr-growth/os-audit)** — McKinsey-tier qualitative audit for AI operating systems. 8-wave parallel architecture. Ship an exec deck + action plan in 6-10 hours.
+
 ## Contributing
 
 1. Fork the repo

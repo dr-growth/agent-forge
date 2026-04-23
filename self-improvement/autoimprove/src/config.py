@@ -13,7 +13,7 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).parent.parent
-AGENTS_DIR = Path(os.environ.get("AGENTS_DIR", str(Path.home() / ".claude" / "agents")))
+SKILLS_DIR = Path.home() / ".claude" / "agents"
 TEST_CASES_DIR = PROJECT_ROOT / "test-cases"
 DIRECTIVES_DIR = PROJECT_ROOT / "directives"
 RESULTS_DIR = PROJECT_ROOT / "results"
@@ -24,7 +24,7 @@ EXPERIMENTS_LOG = RESULTS_DIR / "experiments.jsonl"
 # ---------------------------------------------------------------------------
 
 def get_api_key() -> str:
-    """Retrieve ANTHROPIC_API_KEY from env or .env file."""
+    """Retrieve ANTHROPIC_API_KEY from env, .env file, or macOS keychain."""
     # 1. Environment variable
     key = os.environ.get("ANTHROPIC_API_KEY")
     if key:
@@ -40,36 +40,47 @@ def get_api_key() -> str:
                 if key:
                     return key
 
+    # 3. macOS keychain
+    try:
+        key = subprocess.run(
+            ["security", "find-generic-password", "-s", "anthropic", "-w"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        if key:
+            return key
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+
     raise RuntimeError(
         "ANTHROPIC_API_KEY not found. Set it via:\n"
         "  1. export ANTHROPIC_API_KEY=sk-...\n"
-        "  2. echo 'ANTHROPIC_API_KEY=sk-...' > .env\n"
+        "  2. echo 'ANTHROPIC_API_KEY=sk-...' > ~/pai-os/projects/autoimprove/.env\n"
     )
 
 
-# Model for running agents (the thing being tested)
-RUNNER_MODEL = os.environ.get("RUNNER_MODEL", "claude-sonnet-4-20250514")
+# Model for running skills (the thing being tested)
+RUNNER_MODEL = "claude-sonnet-4-20250514"
 
-# Model for proposing improvements to agent files
-PROPOSER_MODEL = os.environ.get("PROPOSER_MODEL", "claude-sonnet-4-20250514")
+# Model for proposing improvements to skill files
+PROPOSER_MODEL = "claude-sonnet-4-20250514"
 
-# Model for semantic scoring dimensions
-JUDGE_MODEL = os.environ.get("JUDGE_MODEL", "claude-sonnet-4-20250514")
+# Model for semantic scoring dimensions (quality over cost -- the judge IS the ceiling)
+JUDGE_MODEL = "claude-sonnet-4-20250514"
 
-# Max tokens for agent execution
-RUNNER_MAX_TOKENS = int(os.environ.get("RUNNER_MAX_TOKENS", "4096"))
+# Max tokens for skill execution
+RUNNER_MAX_TOKENS = 4096
 
 # Max tokens for improvement proposals
-PROPOSER_MAX_TOKENS = int(os.environ.get("PROPOSER_MAX_TOKENS", "2048"))
+PROPOSER_MAX_TOKENS = 2048
 
 # Max tokens for judge evaluations
-JUDGE_MAX_TOKENS = int(os.environ.get("JUDGE_MAX_TOKENS", "1024"))
+JUDGE_MAX_TOKENS = 1024
 
 # ---------------------------------------------------------------------------
-# Scoring Weights by Agent Type
+# Scoring Weights by Skill Type
 # ---------------------------------------------------------------------------
 
-# Each agent type has different weight distributions across the 6 dimensions.
+# Each skill type has different weight distributions across the 6 dimensions.
 # Weights must sum to 1.0.
 
 SCORING_WEIGHTS = {
@@ -99,24 +110,56 @@ SCORING_WEIGHTS = {
     },
 }
 
-# Agent -> type mapping (add entries as you onboard agents)
-SKILL_TYPES: dict[str, str] = {
-    # Example entries:
-    # "researcher": "research",
-    # "coordinator": "execution",
-    # "strategist": "research",
+# Skill -> type mapping (add entries as you onboard skills)
+SKILL_TYPES = {
+    "scout": "research",
+    "chief-of-staff": "execution",
+    "build-in-public": "execution",
+    "account-researcher": "research",
+    "competitor-scan": "research",
+    "signal-crafter": "execution",
+    "eval-harness": "infrastructure",
+    "iterative-retrieval": "infrastructure",
+    "scaffolding-projects": "infrastructure",
+    "linkedin-posting": "execution",
+    "close-chat": "infrastructure",
 }
+
+# ---------------------------------------------------------------------------
+# v2 Configuration — three-signal evaluator with behavioral gate
+# ---------------------------------------------------------------------------
+
+# Rubric judge: Opus (procedural criteria, harder to game, external standard)
+V2_RUBRIC_JUDGE_MODEL = "claude-opus-4-7"
+V2_RUBRIC_JUDGE_MAX_TOKENS = 2048
+
+# Behavioral gate: fraction of assertions that must pass for a run to count.
+# Below threshold → iteration is rejected regardless of other signals.
+V2_BEHAVIORAL_GATE_THRESHOLD = 0.80
+
+# Composite score weighting (used ONLY when the behavioral gate passes)
+V2_COMPOSITE_WEIGHTS = {
+    "rubric": 0.60,   # Opus grading against Anthropic's building-skills doc
+    "prose": 0.40,    # v1 Haiku prose score, retained for continuity
+}
+
+# Cost cap for v2 runs (Opus is pricier than v1 stack)
+V2_COST_CAP_PER_RUN = 10.0
+
+# Path to the authoritative skill-authoring rubric source
+V2_RUBRIC_SOURCE = Path.home() / ".claude" / "skills" / "building-skills" / "SKILL.md"
 
 # ---------------------------------------------------------------------------
 # Loop Configuration
 # ---------------------------------------------------------------------------
 
 # Stop loop when score improvement is below this for N consecutive runs
-CONVERGENCE_THRESHOLD = float(os.environ.get("CONVERGENCE_THRESHOLD", "0.5"))
-CONVERGENCE_RUNS = int(os.environ.get("CONVERGENCE_RUNS", "3"))
+CONVERGENCE_THRESHOLD = 0.5
+CONVERGENCE_RUNS = 3
 
 # Hard cost cap per loop run (USD)
-COST_CAP_PER_RUN = float(os.environ.get("COST_CAP_PER_RUN", "5.0"))
+# Set low for initial testing. Increase once evaluator is calibrated.
+COST_CAP_PER_RUN = 5.0
 
 # Approximate cost tracking (USD per 1M tokens)
 COST_PER_1M_INPUT = {

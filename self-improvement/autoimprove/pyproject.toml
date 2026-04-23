@@ -1,0 +1,11 @@
+[project]
+name = "autoimprove"
+version = "0.1.0"
+description = "Autonomous skill & agent improvement engine for PAIOS"
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=0.40.0",
+]
+
+[project.scripts]
+autoimprove = "src.loop:main"
